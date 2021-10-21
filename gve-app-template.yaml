@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: ${APP_NAME}
+  labels:
+    app: ${APP_NAME}
+  annotations:
+    description: "GVE Devnet Template for OpenShift Application"
+    tags: "gve,gve-devnet,GVE,GVE-DevNet"
+objects:
+# Image Stream
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: ${APP_NAME}
+    labels:
+      app: ${APP_NAME}
+  spec:
+    lookupPolicy:
+      local: false
+    tags:
+    - from:
+        kind: DockerImage
+        name: ${APP_IMAGE}
+      name: latest
+      referencePolicy:
+        type: Source
+
+# Deployment Config Template
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: ${APP_NAME}
+    labels:
+      app: ${APP_NAME}
+  spec:
+    replicas: ${REPLICA_COUNT}
+    selector:
+      app: ${APP_NAME}
+      deploymentconfig: ${APP_NAME}
+    strategy:
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          app: ${APP_NAME}
+          deploymentconfig: ${APP_NAME}
+      spec:
+        containers:
+        - image: ${APP_IMAGE}
+          imagePullPolicy: Always
+          name: ${APP_NAME}
+          ports:
+          - containerPort: ${APP_PORT}
+            protocol: TCP
+          resources:
+            limits:
+              memory: "300Mi"
+            requests:
+              memory: "256Mi"
+        restartPolicy: Always
+    test: false
+    triggers:
+    - type: ConfigChange
+
+# Service Template    
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: ${APP_NAME}
+    labels:
+      app: ${APP_NAME}
+  spec:
+    ports:
+    - port: ${APP_PORT}
+      protocol: TCP
+      name: ${APP_PORT}-tcp
+    selector:
+      app: ${APP_NAME}
+      deploymentconfig: ${APP_NAME}
+
+# Route Template
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: ${APP_NAME}
+    labels:
+      app: ${APP_NAME}
+  spec:
+    host: gve-devnet-${APP_NAME}.cisco.com
+    ports:
+      - name: ${APP_PORT}-tcp
+        port: ${APP_PORT}
+        protocol: TCP
+        targetPort: ${APP_PORT}
+    tls:
+      termination: edge
+    to:
+      kind: Service
+      name: ${APP_NAME}
+      weight: 100
+    wildcardPolicy: None
+
+parameters:
+- name: PROJECT_NAME
+  description: Namespace of the project where the application will be deployed
+  value: "gvedevnetdemos"
+  required: true
+- name: APP_NAME
+  description: Name of the application that is being deployed
+  required: true
+- name: APP_PORT
+  description: Port of the application that is consumed or exposed
+  required: true
+- name: APP_IMAGE
+  description: Image name as available in the project container registry 
+  required: true
+- name: REPLICA_COUNT
+  description: Number of instances that needs to run by default
+  value: "1"
+  required: true

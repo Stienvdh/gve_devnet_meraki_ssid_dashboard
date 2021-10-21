@@ -1,0 +1,12 @@
+# Docker Compose file for easier build and test in local machine
+version: "3.8"
+services:
+  app:
+    build:
+      context: .
+      labels:
+        team.name: "GVE DevNet"
+        team.email : "gve-devnet@cisco.com"
+    image: containers.cisco.com/gvedevnet/app-template:latest
+    ports:
+    - "5000:5000"
